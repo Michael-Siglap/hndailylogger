@@ -77,25 +77,65 @@ def compute_features(df):
         "close_kurtosis": kurtosis(df["close"])
     }
 
-def compute_performance(signals_df):
+def compute_performance(signals_df, asset_pair, exchange_name, strategy_id, start_ts, end_ts):
     if signals_df.empty:
-        return {"total_profit": 0, "profit_pct": 0, "sharpe_ratio": 0, "win_rate_pct": 0, "max_drawdown_pct": 0}
+        return {
+            "total_profit": 0, "profit_pct": 0,
+            "sharpe_ratio": 0, "win_rate_pct": 0,
+            "max_drawdown_pct": 0
+        }
 
-    signals_df['profit'] = pd.to_numeric(signals_df['profit'], errors='coerce')
-    total_profit = signals_df['profit'].sum()
-    profit_pct = (total_profit / 1000) * 100
-    sharpe_ratio = signals_df['profit'].mean() / (signals_df['profit'].std() + 1e-9) * np.sqrt(252)
-    win_rate = (signals_df['profit'] > 0).sum() / len(signals_df) * 100
-    drawdowns = signals_df['profit'].cumsum().cummax() - signals_df['profit'].cumsum()
+    # Filter for matching strategy and asset context
+    filtered = signals_df[
+        (signals_df["asset_pair"] == asset_pair) &
+        (signals_df["exchange_name"] == exchange_name) &
+        (signals_df["strategy_id"] == strategy_id) &
+        (signals_df["timestamp"] >= start_ts) &
+        (signals_df["timestamp"] <= end_ts)
+    ].sort_values("timestamp").reset_index(drop=True)
+
+    if filtered.empty:
+        return {
+            "total_profit": 0, "profit_pct": 0,
+            "sharpe_ratio": 0, "win_rate_pct": 0,
+            "max_drawdown_pct": 0
+        }
+
+    profits = []
+    buy_price = None
+
+    for _, row in filtered.iterrows():
+        if row["signal_type"] == "BUY":
+            buy_price = row["price"]
+        elif row["signal_type"] == "SELL" and buy_price is not None:
+            sell_price = row["price"]
+            profit = sell_price - buy_price
+            profits.append(profit)
+            buy_price = None  # reset for next round-trip
+
+    if not profits:
+        return {
+            "total_profit": 0, "profit_pct": 0,
+            "sharpe_ratio": 0, "win_rate_pct": 0,
+            "max_drawdown_pct": 0
+        }
+
+    profits = pd.Series(profits)
+    total_profit = profits.sum()
+    profit_pct = (total_profit / 1000) * 100  # Example: 1000 USDT base
+    sharpe_ratio = profits.mean() / (profits.std() + 1e-9) * np.sqrt(252)
+    win_rate = (profits > 0).sum() / len(profits) * 100
+    drawdowns = profits.cumsum().cummax() - profits.cumsum()
     max_drawdown = drawdowns.max()
 
     return {
-        "total_profit": total_profit,
-        "profit_pct": profit_pct,
-        "sharpe_ratio": sharpe_ratio,
-        "win_rate_pct": win_rate,
-        "max_drawdown_pct": max_drawdown
+        "total_profit": float(total_profit),
+        "profit_pct": float(profit_pct),
+        "sharpe_ratio": float(sharpe_ratio),
+        "win_rate_pct": float(win_rate),
+        "max_drawdown_pct": float(max_drawdown)
     }
+
 
 def log_training_row(asset_pair, exchange):
     end_ts = datetime.now(timezone.utc)
@@ -111,7 +151,7 @@ def log_training_row(asset_pair, exchange):
     signals_df = fetch_signals(strategy_id, start_ts, end_ts)
 
     features = compute_features(market_df)
-    metrics = compute_performance(signals_df)
+    metrics = compute_performance(signals_df, asset_pair, exchange, strategy_id, start_ts, end_ts)
 
     row = {
         "asset_pair": asset_pair,
