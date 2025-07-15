@@ -10,6 +10,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from scipy.stats import kurtosis, skew
 from supabase import create_client
+from datetime import timezone
 
 load_dotenv()
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_API_KEY"))
@@ -97,7 +98,7 @@ def compute_performance(signals_df):
     }
 
 def log_training_row(asset_pair, exchange):
-    end_ts = datetime.utcnow()
+    end_ts = datetime.now(timezone.utc)
     start_ts = end_ts - timedelta(days=1)
 
     market_df = fetch_market_data(asset_pair, exchange, start_ts, end_ts)
