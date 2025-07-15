@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from scipy.stats import kurtosis, skew
-
 from supabase import create_client
 
 load_dotenv()
@@ -53,7 +52,7 @@ def fetch_signals(strategy_id, start_ts, end_ts):
     res = supabase.table("hn_trading_signals") \
         .select("*") \
         .eq("strategy_id", strategy_id) \
-        .eq("executed", True) \
+        .eq("executed", False) \
         .gte("timestamp", start_ts.isoformat()) \
         .lte("timestamp", end_ts.isoformat()) \
         .order("timestamp") \
