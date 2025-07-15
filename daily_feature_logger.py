@@ -85,7 +85,8 @@ def compute_performance(signals_df, asset_pair, exchange_name, strategy_id, star
             "max_drawdown_pct": 0
         }
 
-    # Filter for matching strategy and asset context
+    signals_df["timestamp"] = pd.to_datetime(signals_df["timestamp"])  # <-- Add this line
+
     filtered = signals_df[
         (signals_df["asset_pair"] == asset_pair) &
         (signals_df["exchange_name"] == exchange_name) &
@@ -93,6 +94,7 @@ def compute_performance(signals_df, asset_pair, exchange_name, strategy_id, star
         (signals_df["timestamp"] >= start_ts) &
         (signals_df["timestamp"] <= end_ts)
     ].sort_values("timestamp").reset_index(drop=True)
+
 
     if filtered.empty:
         return {
