@@ -85,7 +85,7 @@ def compute_performance(signals_df, asset_pair, exchange_name, strategy_id, star
             "max_drawdown_pct": 0
         }
 
-    signals_df["timestamp"] = pd.to_datetime(signals_df["timestamp"])  # <-- Add this line
+    signals_df["timestamp"] = pd.to_datetime(signals_df["timestamp"])
 
     filtered = signals_df[
         (signals_df["asset_pair"] == asset_pair) &
